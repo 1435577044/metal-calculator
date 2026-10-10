@@ -1,0 +1,30 @@
+# ---- 构建产物（可由源码重新生成，不入库）----
+# PyInstaller 中间文件
+desktop/build/
+# 打包输出：单文件 exe 约 12 MB，每次构建都会变
+dist/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---- Node ----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---- WorkBuddy 本地状态 ----
+.workbuddy/
+.workbuddy_note.txt
+*.log

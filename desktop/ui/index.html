@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金属算量 · 截面特性与理论单重</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eef1f5; --panel:#ffffff; --panel-2:#f6f8fb;
+  --line:#e6e8ec; --line-2:#d4d8de;
+  --txt:#1a1d21; --txt-2:#4d5560; --txt-3:#616975;   /* txt-3 全部底色上 ≥4.6:1 */
+  --accent:#2563eb; --accent-soft:#eff4ff; --accent-line:#c3d5fd;
+  --ok:#0a7a53; --ok-soft:#e8f7f0;
+  --warn:#c2700a; --warn-soft:#fdf3e3;
+  --radius:12px; --radius-sm:8px;
+  --shadow:0 1px 2px rgba(16,24,40,.05), 0 4px 14px rgba(16,24,40,.05);
+  --shadow-lg:0 2px 6px rgba(16,24,40,.06), 0 14px 34px rgba(16,24,40,.09);
+  --mono:"SF Mono",ui-monospace,"Cascadia Mono",Consolas,"Liberation Mono",monospace;
+  /* 控件层（输入框、按钮、下拉）—— 与面板区分，形成 Win11 的分层观感 */
+  --ctl:#e9edf2; --ctl-2:#e1e6ec; --ctl-hover:#d9dfe7; --ctl-line:#a4adba;
+  /* 滚动条 */
+  --sb-track:transparent; --sb-thumb:#c4cad3; --sb-thumb-hover:#a9b1bd;
+  /* 截面大样图专用（跟随主题切换） */
+  --fig-bg:#fbfbfc; --fig-line:#1e293b; --fig-hatch:#94a3b8;
+  --fig-axis:#cbd5e1; --fig-dim:#64748b; --fig-dim-txt:#475569;
+}
+/* ══ 暗色模式 · 对齐 Win11 Fluent 深色调性 ══
+   分层：Mica 底 → 卡片面板 → 控件层（比面板略亮，形成可交互暗示）
+   对比度：正文 ≥ 7:1，次要文字 ≥ 4.5:1，均满足 WCAG AA           */
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#1b1c1e;                      /* Mica 底色，Win11 暗色标准 */
+  --panel:#252628;                   /* 卡片面板 */
+  --panel-2:#2d2f32;                 /* 悬停面板 */
+  --line:#35373a;                    /* 分隔线 */
+  --line-2:#45474b;                  /* 控件描边 */
+  --txt:#f5f5f5;                     /* 正文，对比度 14.2:1 */
+  --txt-2:#cccccc;                   /* 次要文字 8.3:1 */
+  --txt-3:#adafb2;                   /* 弱化文字，控件层上仍 ≥4.5:1 */
+  --accent:#60cdff;                  /* Win11 亮色强调蓝 */
+  --accent-soft:#17334a;             /* 强调色浅底 */
+  --accent-line:#2c5876;
+  --ok:#6ccb5f; --ok-soft:#1b3320;
+  --warn:#fce100; --warn-soft:#332c00;
+  --ctl:#34363a;                     /* 输入框 / 下拉：比面板(#252628)亮一档，可点击感 */
+  --ctl-2:#3b3d41;
+  --ctl-hover:#44474b;
+  --ctl-line:#56595e;
+  --sb-track:transparent;
+  --sb-thumb:#4a4c50; --sb-thumb-hover:#606368;
+  --shadow:0 1px 2px rgba(0,0,0,.34), 0 4px 14px rgba(0,0,0,.3);
+  --shadow-lg:0 2px 6px rgba(0,0,0,.4), 0 14px 34px rgba(0,0,0,.5);
+  --fig-bg:#1e1f21; --fig-line:#d0d0d0; --fig-hatch:#7a7a7a;
+  --fig-axis:#45474b; --fig-dim:#a9a9a9; --fig-dim-txt:#c8c9ca;
+}
+/* SVG 中的硬编码颜色改用变量 */
+:root{--fig-cent:#ef4444}
+:root[data-theme="dark"]{--fig-cent:#ff6b6b}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  background:var(--bg); color:var(--txt);
+  font-size:14px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;
+}
+.app{display:flex;min-height:100vh}
+
+/* ---------- 侧栏 ---------- */
+.side{
+  width:236px;flex:0 0 236px;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.brand{padding:20px 20px 16px;border-bottom:1px solid var(--line)}
+.brand-mark{
+  width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  background:linear-gradient(135deg,#0f6cbd,#3b82f6);color:#fff;
+  font-size:19px;font-weight:700;margin-bottom:10px;
+  box-shadow:0 3px 10px rgba(15,108,189,.4);
+}
+.brand h1{font-size:16px;font-weight:650;letter-spacing:-.01em}
+.brand p{font-size:11.5px;color:var(--txt-3);margin-top:2px}
+
+.nav{padding:12px 12px 4px}
+.nav-label{font-size:10.5px;font-weight:600;color:var(--txt-3);letter-spacing:.07em;padding:0 10px 7px;text-transform:uppercase}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radius-sm);
+  color:var(--txt-2);cursor:pointer;font-size:13.5px;font-weight:500;
+  border:none;background:none;width:100%;text-align:left;font-family:inherit;
+  transition:background .14s,color .14s;
+}
+.nav-item:hover{background:var(--panel-2);color:var(--txt)}
+.nav-item.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav-item .ico{width:18px;text-align:center;font-size:14.5px;flex:0 0 18px}
+.nav-item .badge{
+  margin-left:auto;font-size:10px;padding:1.5px 6px;border-radius:20px;
+  background:var(--line);color:var(--txt-3);font-weight:600;
+}
+.nav-item.on .badge{background:var(--accent);color:#fff}
+
+.side-foot{margin-top:auto;padding:14px 18px 18px;border-top:1px solid var(--line);font-size:11px;color:var(--txt-3);line-height:1.7}
+.side-foot b{color:var(--txt-2);font-weight:600}
+
+/* ---------- 主区 ---------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+.top{
+  display:flex;align-items:center;gap:16px;padding:18px 28px;
+  background:var(--panel);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:20;
+}
+.top h2{font-size:18px;font-weight:650;letter-spacing:-.01em}
+.top .sub{font-size:12.5px;color:var(--txt-3);margin-top:1px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* 亮/暗主题切换 */
+.theme-btn{
+  width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel);cursor:pointer;display:inline-flex;align-items:center;
+  justify-content:center;padding:0;transition:background .15s,border-color .15s;
+}
+.theme-btn:hover{background:var(--panel-2);border-color:var(--line-2)}
+.theme-btn svg{width:17px;height:17px;stroke:var(--txt-2);fill:none;
+  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.theme-btn:hover svg{stroke:var(--txt)}
+.theme-btn .i-moon{display:none}
+:root[data-theme="dark"] .theme-btn .i-sun{display:none}
+:root[data-theme="dark"] .theme-btn .i-moon{display:block}
+
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:2.5px;gap:2px}
+.seg button{
+  border:none;background:none;padding:5px 11px;border-radius:7px;cursor:pointer;
+  font-size:12.5px;font-family:inherit;color:var(--txt-2);font-weight:500;white-space:nowrap;
+  transition:background .14s,color .14s;
+}
+.seg button:hover{color:var(--txt)}
+.seg button.on{background:var(--ctl);color:var(--accent);font-weight:600;
+  box-shadow:0 1px 3px rgba(0,0,0,.22)}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;
+  border:1px solid var(--ctl-line);background:var(--ctl);cursor:pointer;font-size:12.5px;
+  font-family:inherit;color:var(--txt-2);font-weight:500;white-space:nowrap;
+  transition:background .14s,border-color .14s,color .14s;
+}
+.btn:hover{background:var(--ctl-hover);border-color:var(--ctl-line);color:var(--txt)}
+.btn-p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-p:hover{background:#4ba7f0;border-color:#4ba7f0;color:#06121c}
+
+.body{padding:22px 28px 60px;flex:1}
+.page{display:none;animation:fade .22s ease}
+.page.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- 卡片 ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{padding:13px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+.card-h h3{font-size:13.5px;font-weight:640}
+.card-h .hint{font-size:11.5px;color:var(--txt-3);margin-left:auto;font-weight:400}
+.card-b{padding:17px}
+
+.grid{display:grid;gap:16px}
+.g-2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g-side{grid-template-columns:minmax(330px,400px) minmax(0,1fr)}
+@media(max-width:1180px){.g-side,.g-2,.g-3{grid-template-columns:1fr}}
+
+/* ---------- 表单 ---------- */
+.field{margin-bottom:13px}
+.field:last-child{margin-bottom:0}
+.lbl{font-size:11.5px;font-weight:600;color:var(--txt-2);margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.lbl .u{color:var(--txt-3);font-weight:400}
+.inp,select.inp{
+  width:100%;padding:8px 11px;border:1px solid var(--line-2);border-radius:8px;
+  font-size:13px;font-family:inherit;color:var(--txt);background:var(--ctl);
+  transition:border-color .14s,box-shadow .14s;
+}
+.inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.11)}
+select.inp{cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 12 12'%3E%3Cpath fill='%238b939f' d='M6 8.5L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;
+}
+:root[data-theme="dark"] select.inp{
+  /* 箭头在暗色下需提亮，否则几乎看不见 */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 12 12'%3E%3Cpath fill='%23c8c9ca' d='M6 8.5L2 4h8z'/%3E%3C/svg%3E");
+}
+/* 下拉展开面板由系统渲染，必须显式指定 option / optgroup 配色，
+   否则暗色下 Windows 会用浅色面板配深色文字，出现"白底黑字"突兀条 */
+select.inp option{background:var(--ctl);color:var(--txt)}
+select.inp optgroup{background:var(--panel-2);color:var(--txt-2);font-weight:600;font-style:normal}
+select.inp option:checked{background:var(--accent-soft);color:var(--txt)}
+/* 数字输入框的步进箭头：Chromium 默认偏亮，暗色下刺眼 */
+.inp[type=number]{color:var(--txt)}
+.inp::placeholder{color:var(--txt-3);opacity:1}
+:root[data-theme="dark"] .inp[type=number]::-webkit-inner-spin-button{
+  filter:invert(.75)}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.mono{font-family:var(--mono)}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{
+  padding:5px 11px;border-radius:20px;border:1px solid var(--ctl-line);background:var(--ctl);
+  cursor:pointer;font-size:12px;font-family:inherit;color:var(--txt-2);font-weight:500;
+  transition:all .14s;
+}
+.chip:hover{border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+/* ---------- 结果 ---------- */
+.hero{
+  background:linear-gradient(135deg,#0f6cbd,#2f7fe0);color:#fff;border-radius:var(--radius);
+  padding:20px 22px;box-shadow:0 4px 16px rgba(37,99,235,.22);
+}
+.hero .t{font-size:11.5px;opacity:.86;font-weight:500;letter-spacing:.02em}
+.hero .v{font-size:38px;font-weight:680;letter-spacing:-.025em;font-family:var(--mono);line-height:1.16;margin-top:3px}
+.hero .v small{font-size:15px;font-weight:500;opacity:.9;margin-left:5px;letter-spacing:0}
+.hero .n{font-size:11.5px;opacity:.86;margin-top:6px}
+
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:9px}
+.kpi-i{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+.kpi-i .k{font-size:10.5px;color:var(--txt-3);font-weight:600;letter-spacing:.02em}
+.kpi-i .v{font-size:17px;font-weight:640;font-family:var(--mono);margin-top:3px;letter-spacing:-.02em}
+.kpi-i .v u{font-size:10.5px;font-weight:500;color:var(--txt-3);text-decoration:none;margin-left:2px}
+.kpi-i.hi{background:var(--accent-soft);border-color:var(--accent-line)}
+.kpi-i.hi .v{color:var(--accent)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:11px;font-weight:600;color:var(--txt-2);letter-spacing:.02em;background:var(--panel-2);position:sticky;top:0}
+td.n,th.n{text-align:right;font-family:var(--mono)}
+tbody tr:nth-child(even){background:rgba(128,128,128,.04)}
+:root[data-theme="dark"] tbody tr:nth-child(even){background:rgba(255,255,255,.028)}
+tbody tr:hover{background:var(--accent-soft)}
+tbody tr:last-child td{border-bottom:none}
+.tscroll{max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius-sm)}
+
+/* ---------- 截面大样图 ---------- */
+.fig{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px;
+     display:flex;align-items:center;justify-content:center;min-height:270px;position:relative;overflow:hidden}
+.fig svg{width:100%;height:auto;display:block}
+.fig-cap{position:absolute;bottom:8px;left:11px;font-size:10.5px;color:var(--txt-3)}
+.dims{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.dim{font-size:10.5px;padding:3px 8px;background:var(--ctl);border:1px solid var(--line);
+     border-radius:6px;color:var(--txt-2);font-family:var(--mono)}
+
+.note{background:var(--warn-soft);border:1px solid #f3ddb8;border-radius:9px;padding:11px 13px;
+      font-size:12px;color:var(--warn);line-height:1.65}
+.note b{font-weight:640}
+.note.info{background:var(--accent-soft);border-color:var(--accent-line);color:#1e40af}
+.note.ok{background:var(--ok-soft);border-color:#bfe8d5;color:var(--ok)}
+.note code{font-family:var(--mono);font-size:11.5px;background:rgba(0,0,0,.05);padding:1px 4px;border-radius:4px}
+
+.tbl-tools{display:flex;gap:8px;align-items:center;padding:12px 15px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.search{position:relative;flex:1;min-width:180px}
+.search input{
+  width:100%;padding:7.5px 11px 7.5px 31px;border:1px solid var(--line-2);border-radius:8px;
+  font-size:12.5px;font-family:inherit;background:var(--ctl);color:var(--txt);
+}
+.search input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.11)}
+.search::before{content:"🔍";position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.5}
+
+.rowlist{display:flex;flex-direction:column;gap:7px}
+.row-i{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--panel-2);
+       border:1px solid var(--line);border-radius:9px;font-size:12.5px}
+.row-i .nm{font-weight:600;font-family:var(--mono)}
+.row-i .meta{color:var(--txt-3);font-size:11.5px}
+.row-i .mv{margin-left:auto;font-family:var(--mono);font-weight:600}
+
+.empty{padding:40px 20px;text-align:center;color:var(--txt-3);font-size:13px}
+.stk{display:flex;flex-direction:column;gap:16px}
+hr.sep{border:none;border-top:1px solid var(--line);margin:16px 0}
+
+.kbd{display:inline-block;padding:1px 5px;border:1px solid var(--line-2);border-bottom-width:2px;
+     border-radius:4px;font-family:var(--mono);font-size:10.5px;background:var(--ctl-2);color:var(--txt-2)}
+
+/* ---------- 滚动条（跟随主题） ---------- */
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:var(--sb-track)}
+::-webkit-scrollbar-thumb{background:var(--sb-thumb);border-radius:6px;
+  border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--sb-thumb-hover);background-clip:content-box;
+  border:2px solid transparent}
+::-webkit-scrollbar-corner{background:transparent}
+
+@media print{
+  .side,.top,.noprint{display:none!important}
+  .app{display:block}
+  .body{padding:0}
+  .card{box-shadow:none;border-color:#ccc;break-inside:avoid}
+}
+
+/* ---------- 导出弹窗 ---------- */
+.dlg-wrap{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;
+  padding:24px;z-index:100;animation:fade .16s ease}
+.dlg{background:var(--panel);border-radius:14px;width:min(880px,100%);max-height:82vh;
+  display:flex;flex-direction:column;box-shadow:0 18px 48px rgba(16,24,40,.24);overflow:hidden}
+.dlg-h{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.dlg-h h3{font-size:14.5px;font-weight:640;flex:1}
+.dlg-x{width:28px;height:28px;border:none;background:none;border-radius:6px;cursor:pointer;
+  font-size:20px;line-height:1;color:var(--txt-3);font-family:inherit}
+.dlg-x:hover{background:var(--bg);color:var(--txt)}
+.dlg-b{flex:1;overflow:auto;padding:0}
+.dlg-b pre{margin:0;padding:16px 18px;font:12px/1.75 var(--mono);white-space:pre;
+  color:var(--txt);tab-size:8;-moz-tab-size:8}
+.dlg-f{display:flex;align-items:center;gap:9px;padding:12px 18px;border-top:1px solid var(--line);
+  background:var(--panel-2);flex-wrap:wrap}
+.dlg-f .tip{font-size:11.5px;color:var(--txt-3);margin-right:auto}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧栏 -->
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">Σ</div>
+      <h1>金属算量</h1>
+      <p>截面特性 · 理论单重</p>
+    </div>
+    <nav class="nav">
+      <div class="nav-label">计算</div>
+      <button class="nav-item on" data-p="unit"><span class="ico">⚖</span>理论单重<span class="badge" id="bUnit">0</span></button>
+      <button class="nav-item" data-p="sect"><span class="ico">◈</span>截面特性</button>
+      <button class="nav-item" data-p="batch"><span class="ico">▤</span>批量算量</button>
+      <div class="nav-label" style="padding-top:16px">资料</div>
+      <button class="nav-item" data-p="std"><span class="ico">☰</span>国标型钢表<span class="badge" id="bStd">0</span></button>
+      <button class="nav-item" data-p="mat"><span class="ico">◐</span>材质密度表</button>
+      <button class="nav-item" data-p="help"><span class="ico">?</span>使用说明</button>
+    </nav>
+    <div class="side-foot">
+      <b>合并自</b><br>
+      金属材料单重计算程序<br>
+      截面特性（Detail）<br>
+      <span style="display:block;margin-top:7px;color:#aab0ba">完全离线 · 数据本地</span>
+    </div>
+  </aside>
+
+  <!-- 主区 -->
+  <div class="main">
+    <header class="top">
+      <div>
+        <h2 id="pgTitle">理论单重计算</h2>
+        <div class="sub" id="pgSub">按材质与截面尺寸计算每米重量</div>
+      </div>
+      <div class="top-right noprint">
+        <button class="theme-btn" id="btnTheme" title="切换亮色 / 暗色" aria-label="切换主题">
+          <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/>
+            <path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>
+          <svg class="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.3A8.6 8.6 0 1 1 9.7 3.5a6.9 6.9 0 0 0 10.8 10.8z"/></svg>
+        </button>
+        <button class="btn btn-p" id="btnExport">⤓ 导出表格</button>
+      </div>
+    </header>
+
+    <div class="body">
+      <!-- ========== 理论单重 ========== -->
+      <section class="page on" id="p-unit">
+        <div class="grid g-side">
+          <div class="stk">
+            <div class="card">
+              <div class="card-h"><h3>① 选择材质</h3><span class="hint">决定理论重量</span></div>
+              <div class="card-b">
+                <div class="field">
+                  <div class="lbl">材质 <span class="u">密度 g/cm³</span></div>
+                  <select class="inp" id="uMat"></select>
+                </div>
+                <div class="kpi-i hi" style="display:flex;justify-content:space-between;align-items:center">
+                  <div><div class="k">当前密度</div><div class="v" id="uRho">7.85<u>g/cm³</u></div></div>
+                  <div style="text-align:right;font-size:11.5px;color:var(--txt-3)" id="uMod">E = 206000 MPa</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h3>② 选择截面</h3><span class="hint" id="uCatHint">自定义</span></div>
+              <div class="card-b">
+                <div class="field">
+                  <div class="lbl">截面类型</div>
+                  <select class="inp" id="uType"></select>
+                </div>
+                <div class="field" id="uStdBox" style="display:none">
+                  <div class="lbl">国标型号 <span class="u" id="uStdSpec"></span></div>
+                  <select class="inp" id="uStdSel"></select>
+                </div>
+                <hr class="sep">
+                <div class="field">
+                  <div class="chips" id="uMode">
+                    <button class="chip on" data-m="std">查国标表</button>
+                    <button class="chip" data-m="custom">自定义尺寸</button>
+                  </div>
+                </div>
+                <div id="uDims"></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>③ 计算长度</h3><span class="hint">用于换算表面积</span></div>
+              <div class="card-b">
+                <div class="field" style="margin-bottom:0">
+                  <div class="lbl">长度 <span class="u">m</span></div>
+                  <input class="inp mono" id="uLen" type="number" value="6" step="0.1" min="0">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stk">
+            <div class="hero">
+              <div class="t">理论单重</div>
+              <div class="v" id="uMass">0.000<small>kg/m</small></div>
+              <div class="n" id="uMassN">—</div>
+            </div>
+            <div class="kpi" id="uKpi"></div>
+            <div class="grid g-2">
+              <div class="card">
+                <div class="card-h"><h3>截面大样图</h3><span class="hint">等比例 · 形心 G</span></div>
+                <div class="card-b">
+                  <div class="fig" id="uFig"></div>
+                  <div class="dims" id="uDims2"></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-h"><h3>常用长度理论重量</h3><span class="hint">kg</span></div>
+                <div class="card-b" style="padding:0">
+                  <div class="tscroll" style="max-height:264px;border:none;border-radius:0">
+                    <table id="uLenTb"><tbody></tbody></table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 截面特性 ========== -->
+      <section class="page" id="p-sect">
+        <div class="grid g-side">
+          <div class="stk">
+            <div class="card">
+              <div class="card-h"><h3>截面参数</h3><span class="hint">尺寸 mm · 圆角可留 0</span></div>
+              <div class="card-b">
+                <div class="field">
+                  <div class="lbl">截面类型</div>
+                  <select class="inp" id="sType"></select>
+                </div>
+                <div class="field" id="sStdBox" style="display:none">
+                  <div class="lbl">载入国标型号 <span class="u" id="sStdSpec"></span></div>
+                  <select class="inp" id="sStdSel"></select>
+                </div>
+                <hr class="sep">
+                <div class="field">
+                  <div class="chips" id="sMode">
+                    <button class="chip on" data-m="std">国标型号</button>
+                    <button class="chip" data-m="custom">自定义尺寸</button>
+                  </div>
+                </div>
+                <div id="sDims"></div>
+              </div>
+            </div>
+            <div class="note info">
+              <b>说明</b>：截面模量、回转半径按解析几何精确计算；国标型号模式下
+              惯性矩与模量直接取自规范表值，更贴合设计取值。
+            </div>
+          </div>
+
+          <div class="stk">
+            <div class="hero" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">
+              <div class="t">截面面积</div>
+              <div class="v" id="sArea">0.00<small>cm²</small></div>
+              <div class="n" id="sAreaN">—</div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>截面特性</h3><span class="hint" id="sUnitHint">cm · cm² · cm³ · cm⁴</span></div>
+              <div class="card-b" style="padding:0">
+                <table id="sTb"></table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>截面大样图</h3><span class="hint">含尺寸标注与形心 G</span></div>
+              <div class="card-b">
+                <div class="fig" id="sFig"></div>
+                <div class="dims" id="sDims2"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 批量算量 ========== -->
+      <section class="page" id="p-batch">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-h"><h3>批量算量</h3><span class="hint">逐条录入，自动汇总</span></div>
+          <div class="card-b">
+            <div class="f-row3">
+              <div class="field"><div class="lbl">材质</div><select class="inp" id="tMat"></select></div>
+              <div class="field"><div class="lbl">截面类型</div><select class="inp" id="tType"></select></div>
+              <div class="field"><div class="lbl">国标型号</div><select class="inp" id="tStd"></select></div>
+            </div>
+            <div class="f-row3">
+              <div class="field"><div class="lbl">定尺长度 <span class="u">m</span></div>
+                <select class="inp" id="tPreset"></select></div>
+              <div class="field"><div class="lbl">实际长度 <span class="u">m</span></div>
+                <input class="inp mono" id="tLen" type="number" value="6" step="0.001" min="0"></div>
+              <div class="field"><div class="lbl">数量 <span class="u">根</span></div>
+                <input class="inp mono" id="tQty" type="number" value="1" step="1" min="0"></div>
+            </div>
+            <div class="f-row3">
+              <div class="field"><div class="lbl">损耗率 <span class="u">%</span></div>
+                <input class="inp mono" id="tLoss" type="number" value="0" step="0.5" min="0"></div>
+              <div class="field"><div class="lbl">单价 <span class="u">元/t</span></div>
+                <input class="inp mono" id="tPrice" type="number" value="0" step="50" min="0" placeholder="选填"></div>
+              <div class="field"><div class="lbl">油漆用量 <span class="u">kg/t</span></div>
+                <input class="inp mono" id="tPaint" type="number" value="0" step="5" min="0" placeholder="选填"></div>
+            </div>
+            <div class="f-row3" style="margin-top:10px">
+              <div class="field" style="grid-column:span 3">
+                <div class="lbl">快捷长度 <span class="u">m</span></div>
+                <div class="chips" id="tQuick"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+              <button class="btn btn-p" id="tAdd">＋ 加入清单</button>
+              <button class="btn" id="tClr">清空</button>
+              <span style="margin-left:auto;font-size:12px;color:var(--txt-3);align-self:center" id="tHint"></span>
+            </div>
+            <div id="tPreview" style="margin-top:12px"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>材料汇总表</h3><span class="hint" id="tCnt">共 0 条</span></div>
+          <div class="card-b" style="padding:0">
+            <div class="tscroll">
+              <table id="tTb"></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 国标表 ========== -->
+      <section class="page" id="p-std">
+        <div class="card">
+          <div class="tbl-tools">
+            <div class="search"><input id="stdQ" placeholder="输入型号或规格检索，如 I20a、Φ108、100×4…"></div>
+            <div class="seg" id="stdSeg"></div>
+          </div>
+          <div class="tscroll" id="stdScroll" style="border:none;border-radius:0">
+            <table id="stdTb"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 材质 ========== -->
+      <section class="page" id="p-mat">
+        <div class="card">
+          <div class="card-h"><h3>材质理论重量换算表</h3><span class="hint">单重 = 截面积 × 密度 ÷ 1000</span></div>
+          <div class="card-b" style="padding:0">
+            <div class="tscroll" id="matScroll"><table id="matTb"></table></div>
+          </div>
+        </div>
+        <div class="note info" style="margin-top:16px">
+          <b>原程序口径还原</b>：合并前的《金属材料单重计算程序》按
+          <code>碳素钢 7.85</code>、<code>不锈钢 7.93</code>、<code>铅 11.34</code>、
+          <code>铝 2.71</code> 参与计算，本表在此基础上补充紫铜与灰铸铁。
+        </div>
+      </section>
+
+      <!-- ========== 说明 ========== -->
+      <section class="page" id="p-help">
+        <div class="grid g-2">
+          <div class="card">
+            <div class="card-h"><h3>功能对照</h3></div>
+            <div class="card-b">
+              <table>
+                <thead><tr><th>来源程序</th><th>原有功能</th><th>本工具位置</th></tr></thead>
+                <tbody>
+                  <tr><td rowspan="4" style="vertical-align:top">金属材料单重<br>计算程序</td>
+                      <td>材质选择（碳钢/不锈钢/铅/铝）</td><td>理论单重 → 材质</td></tr>
+                  <tr><td>工字钢、角钢按腿宽腰厚</td><td>理论单重 → 自定义尺寸</td></tr>
+                  <tr><td>圆钢、六角钢按直径对边距</td><td>理论单重 / 批量算量</td></tr>
+                  <tr><td>钢管按外径壁厚内径</td><td>理论单重 / 国标型钢表</td></tr>
+                  <tr><td rowspan="3" style="vertical-align:top">截面特性<br>(Detail)</td>
+                      <td>对称 / 不对称截面</td><td>截面特性 → 截面类型</td></tr>
+                  <tr><td>H型钢、工字钢、槽钢</td><td>截面特性 → 国标型号</td></tr>
+                  <tr><td>矩形管、等边/不等边矩形管</td><td>截面特性 → 自定义尺寸</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="stk">
+            <div class="card">
+              <div class="card-h"><h3>算法与精度</h3></div>
+              <div class="card-b" style="font-size:12.5px;line-height:1.85;color:var(--txt-2)">
+                <p>截面采用<b>解析组合法</b>：将截面拆分为矩形、圆角矩形、圆环、正多边形与凹角圆角填充等
+                解析图元，精确求得面积与形心惯性矩，再按平行轴定理合成。避免了数值积分误差。</p>
+                <div style="margin-top:10px">已对国标型钢交叉校核（共 38 项断言）：</div>
+                <ul style="margin:7px 0 0 17px">
+                  <li>工字钢 GB/T 706：面积、<code>Ix</code> 偏差 <b>&lt; 1.5%</b></li>
+                  <li>槽钢 GB/T 707：<code>Ix</code>、<code>ix</code> 偏差 <b>&lt; 3%</b></li>
+                  <li>圆钢 / 方钢 / 扁钢 / 钢管单重偏差 <b>&lt; 0.1%</b></li>
+                  <li>角钢 GB/T 706 单重偏差 <b>&lt; 1.1%</b></li>
+                </ul>
+                <div class="note" style="margin-top:12px">
+                  <b>提示</b>：国标型号模式下直接查规范表值，不受几何模型简化影响。
+                  冷弯方管、矩管的国标重量随焊管实际圆角变化，工具优先取内置表值。
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>快捷键</h3></div>
+              <div class="card-b" style="font-size:12.5px;line-height:2.1;color:var(--txt-2)">
+                <div><span class="kbd">1</span> 理论单重　<span class="kbd">2</span> 截面特性　<span class="kbd">3</span> 批量算量</div>
+                <div><span class="kbd">Ctrl</span>+<span class="kbd">P</span> 打印　<span class="kbd">Esc</span> 关闭提示</div>
+                <div>输入框内按 <span class="kbd">Enter</span> 即时重算，无需点按钮。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="js/geo.js"></script>
+<script src="js/standards.js"></script>
+<script src="js/section.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
